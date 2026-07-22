@@ -5,16 +5,27 @@ module top (
     input  logic        rst
 );
 
+// Wire Declarations
 logic        zero;
 logic [31:0] result;
 logic [31:0] rdata1, rdata2, imm_ext;
 logic [31:0] mem_rdata;
 ctrl_t       ctrl;
 
-logic [31:0] pc, pc_next;
+logic [31:0] pc, pc_next,pc_4;
 logic        branch_taken;
+logic [31:0] auipc_val;
+
+
 
 logic [31:0] instr;
+logic branch_cond;
+
+//Assignment
+
+assign pc_4=pc+4;
+assign auipc_val = pc + imm_ext;
+
 
 instr_mem topinstr(
     .addr(pc),
@@ -40,18 +51,21 @@ regfile topreg(
     .rs1(instr[19:15]),
     .rs2(instr[24:20]),
     .rd(instr[11:7]),
-    .ddata(ctrl.mem_to_reg ? mem_rdata : result),
+    .ddata(ctrl.jal|ctrl.jalr?pc_4:
+           ctrl.lui? imm_ext:
+           ctrl.auipc?pc+imm_ext:
+          ctrl.mem_to_reg ? mem_rdata : result),
     .rdata1(rdata1),
     .rdata2(rdata2)
 );
 
 ALU topalu(
     .a     (rdata1),
-    .b     (ctrl.jal?(pc+4):(ctrl.alu_src ? imm_ext : rdata2)),
+    .b     (ctrl.alu_src ? imm_ext : rdata2),
     .op    (ctrl.alu_op),
     .result(result),
     .zero  (zero)
-);
+    );
 
 data_mem topdata(
     .clk(clk),
@@ -67,12 +81,21 @@ pc_reg toppc(
     .pc_next(pc_next),
     .pc(pc)
 );
+branch_man topbranch(
+    .in(instr[14:12]),
+    .branch_cond(branch_cond),
+    .zero(zero),
+    .result(result[0])
+);
 
-assign branch_taken = ctrl.branch & (instr[14:12] == 3'b000 ? zero : ~zero);
+assign branch_taken=ctrl.branch&branch_cond;
+
 
 always_comb begin
     if (ctrl.jal)
         pc_next = pc + imm_ext;
+    else if(ctrl.jalr)
+        pc_next = result;
     else if (branch_taken)
         pc_next = pc + imm_ext;
     else

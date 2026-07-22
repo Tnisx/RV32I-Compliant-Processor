@@ -14,8 +14,11 @@ typedef struct packed {
  logic        mem_write;   // Data Memory Write Enable: 1 = Save data into RAM at current clock edge, 0 = Disable
  logic        mem_to_reg;  // Writeback MUX Selector: 0 = Route ALU result to RegFile, 1 = Route RAM read data to RegFile
  logic        branch;      // Mux select to tell when to branch
- logic        jal;         // Mux select to tell when to jump
-} ctrl_t;
+ logic        jal;         // jal mux
+ logic        jalr;        //jalr mux
+ logic        lui;         //lui mux
+ logic        auipc;       //auipc mux
+   } ctrl_t;
 
 `endif
 

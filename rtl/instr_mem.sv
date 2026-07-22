@@ -7,7 +7,7 @@ logic [31:0] mem[0:1023];
 
 initial begin
 
-    $readmemh("programs/sum.hex",mem);
+    $readmemh("fibonacci.hex", mem);
     
 end
 
