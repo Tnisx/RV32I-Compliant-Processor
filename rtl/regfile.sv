@@ -17,8 +17,7 @@ module regfile (
 
     always_ff @(posedge clk) begin
         if(rst)begin
-             for (int i = 1; i < 32; i++) //No other way of reset compiled with Iverilog
-              regs[i] <= 0;
+             regs<='{default: 0};
         end
         else begin
 

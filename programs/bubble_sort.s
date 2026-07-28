@@ -3,8 +3,10 @@
 .section .text
 .globl _start
 
+#translated from C to assembly with the Help of Claude
+
 _start:
-    # ---- initialize unsorted array in data memory ----
+    # loading data
     li   x10, 5
     sw   x10, 0(x0)
     li   x10, 3
@@ -22,7 +24,7 @@ _start:
     li   x10, 4
     sw   x10, 28(x0)
 
-    # ---- bubble sort ----
+    # actual sorting
     li   x1, 0             # x1 = i (outer loop counter)
     li   x2, 8              # x2 = N (array length)
     addi x3, x2, -1         # x3 = N-1 (outer loop bound)
