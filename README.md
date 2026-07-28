@@ -16,16 +16,18 @@ This project was built as a hands-on exercise in computer architecture going fro
  Currently supported instructions:
   - R-type: `add`, `sub`, `sll`, `slt`, `sltu`, `xor`, `srl`, `sra`, `or`, `and`
   - I-type (ALU immediate): `addi`, `slti`, `sltiu`, `xori`, `ori`, `andi`, `slli`, `srli`, `srai`
-  - Load / Store: `lw`, `sw` (word-only; `lb`/`lh`/`lbu`/`lhu`/`sb`/`sh` not yet supported since `data_mem` is word-indexed)
+  - Load / Store: `lb`, `lh`, `lw`, `lbu`, `lhu`, `sb`, `sh`, `sw` (`data_mem` is byte-indexed with a `lsmem`/`lsmem_signed` control pair selecting width and sign-extension)
   - Branches: `beq`, `bne`, `blt`, `bge`, `bltu`, `bgeu`
   - Jumps: `jal`, `jalr`
   - Upper immediate: `lui`, `auipc`
 
-> Not yet implemented: `ecall`, `ebreak`, `fence`, and byte/halfword loads and stores.
+> Not yet implemented: `ecall`, `ebreak`, `fence`.
 
 ## Known Issues / Notes
 
 > **Testbenches may not all run cleanly.** The `tb_phase1.sv` .. `tb_phase4.sv` testbenches were written incrementally as the design grew, one phase at a time. As later phases changed module interfaces, control signals, and internal structure (e.g. the control unit refactor and the addition of `branch_man.sv`), the earlier-phase testbenches weren't always updated to match. So some of them may fail to compile or give incorrect results against the current RTL. `tb_alu.sv`, `tb_regfile.sv`, `tb_sum.sv`, and `tb_fibonacci.sv` are the ones most likely to reflect the current design; treat the `tb_phaseN.sv` files as a historical record of development rather than a guaranteed-passing test suite.
+
+> **`instr_mem.sv` has a hardcoded `$readmemh` filename.** It currently loads `bubble_sort.hex` unconditionally, regardless of which testbench is run. To run `sum.hex` or `fibonacci.hex` against `tb_phase4.sv` / `tb_fibonacci.sv`, swap the filename in `instr_mem.sv` (or parameterize it) before compiling — otherwise the testbench will be checking results against whatever program `bubble_sort.hex` actually contains.
 
 ## Repository Structure
 
