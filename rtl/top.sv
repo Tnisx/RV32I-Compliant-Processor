@@ -97,7 +97,7 @@ always_comb begin
     if (ctrl.jal)
         pc_next = pc + imm_ext;
     else if(ctrl.jalr)
-        pc_next = result;
+        pc_next = {result[31:1],1'b0};
     else if (branch_taken)
         pc_next = pc + imm_ext;
     else
