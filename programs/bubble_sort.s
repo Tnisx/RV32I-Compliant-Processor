@@ -1,3 +1,5 @@
+# this is with help with claude since my gcc compiler(c to assembly) wasnt really working for my .c bubble sort algorithm.
+
 .section .text
 .globl _start
 
