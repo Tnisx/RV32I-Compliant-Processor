@@ -22,10 +22,13 @@ initial begin
 
     #900;
 
-    $display("Fibonacchi Sequence");
-    for(int i=0;i<10;i=i+1)begin
-        $display("FS[%0d]=%0d",i,dut.topdata.ram[i]);
-    end
+  $display("Fibonacchi Sequence");
+for(int i=0;i<10;i=i+1)begin
+    logic [31:0] word;
+    word = {dut.topdata.ram[i*4+3], dut.topdata.ram[i*4+2],
+            dut.topdata.ram[i*4+1], dut.topdata.ram[i*4]};
+    $display("FS[%0d]=%0d", i, word);
+end
     $finish;
     end
     endmodule

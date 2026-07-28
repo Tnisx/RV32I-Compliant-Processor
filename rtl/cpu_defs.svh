@@ -18,6 +18,8 @@ typedef struct packed {
  logic        jalr;        //jalr mux
  logic        lui;         //lui mux
  logic        auipc;       //auipc mux
+ logic  [1:0] lsmem;        //for load stype structure bit width 
+ logic        lsmem_signed; //signed or unsigned load type
    } ctrl_t;
 
 `endif

@@ -72,6 +72,8 @@ data_mem topdata(
     .mem_write(ctrl.mem_write),
     .addr(result),
     .wdata(rdata2),
+    .lsmem(ctrl.lsmem),
+    .lsmem_signed(ctrl.lsmem_signed),
     .rdata(mem_rdata)
 );
 

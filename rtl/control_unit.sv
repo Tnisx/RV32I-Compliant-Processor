@@ -24,6 +24,8 @@ always_comb begin
     ctrl.jalr=0;
     ctrl.lui=0;
     ctrl.auipc=0;
+    ctrl.lsmem=0;
+    ctrl.lsmem_signed=0;
 
     case(opcode)
     7'b0110011:begin
@@ -55,20 +57,50 @@ always_comb begin
             3'b101: ctrl.alu_op = alu_op_t'(funct7_6 ? ALU_SRA : ALU_SRL);
     endcase
     end
-    7'b0000011: begin // lw (Load Word)
+    7'b0000011: begin 
                 ctrl.we         = 1;
                 ctrl.alu_src    = 1;   
                 ctrl.mem_write  = 0;
                 ctrl.mem_to_reg = 1;
                 ctrl.alu_op     = ALU_ADD; 
-            end
+                ctrl.lsmem      = 0;
+                ctrl.lsmem_signed= 0;
+
+                case(funct3)
+                3'b000:begin
+                    ctrl.lsmem=2'b01; ctrl.lsmem_signed=1;//LB
+                end
+                3'b001:begin
+                    ctrl.lsmem=2'b10; ctrl.lsmem_signed=1;//LH
+                end
+                3'b010:ctrl.lsmem=2'b11; //LW
+                3'b100:begin 
+                    ctrl.lsmem=2'b01; ctrl.lsmem_signed=0;//LBU
+                end
+                3'b101:begin
+                    ctrl.lsmem=2'b10; ctrl.lsmem_signed=0;//LHU
+                end
+                default:;
+                endcase
+                end
+
 
     7'b0100011: begin // sw (Store Word)
-                ctrl.we         = 0;
-                ctrl.alu_src    = 1;   
-                ctrl.mem_write  = 1;
-                ctrl.mem_to_reg = 0;
-                ctrl.alu_op     = ALU_ADD; 
+                ctrl.we          = 0;
+                ctrl.alu_src     = 1;   
+                ctrl.mem_write   = 1;
+                ctrl.mem_to_reg  = 0;
+                ctrl.alu_op      = ALU_ADD;
+                ctrl.lsmem       = 0;
+                ctrl.lsmem_signed= 0;
+
+                case(funct3)
+                3'b000:ctrl.lsmem=2'b01;//SB
+                3'b001:ctrl.lsmem=2'b10;//SH
+                3'b010:ctrl.lsmem=2'b11;//SW
+                default:;
+                endcase
+
             end
     7'b1100011:begin //branch
                ctrl.branch=1;
@@ -98,7 +130,7 @@ always_comb begin
         ctrl.lui= 1;
 
     end
-    7'b0010111: begin
+    7'b0010111: begin //AUIPC
         ctrl.we = 1;
         ctrl.auipc= 1;
     end
@@ -108,11 +140,10 @@ always_comb begin
          default:begin
 
         end
-
+    endcase
+end
     
 
-    endcase
-    end
 
     
    
