@@ -23,8 +23,8 @@ always_ff@(posedge clk)begin
             ram[addr]<=wdata[7:0];
         end
         2'b10:begin
-             ram[addr+1]<=wdata[7:0];
-             ram[addr+2]<=wdata[15:8];
+             ram[addr]<=wdata[7:0];
+             ram[addr+1]<=wdata[15:8];
         end
             
         2'b11:begin
