@@ -1,143 +1,149 @@
 # RV32I Single-Cycle Processor
 
-A single-cycle RISC-V CPU implementing a subset of the RV32I base integer instruction set, written in SystemVerilog.
+A single-cycle RISC-V CPU implementing the RV32I base integer instruction set plus machine-mode traps and CSRs, written in SystemVerilog. It can now run a bare-metal "Hello World" over a simulated UART.
 
-This project was built as a hands-on exercise in computer architecture going from individual datapath components (ALU, register file, immediate generator) up to a fully wired single-cycle CPU capable of running simple assembly programs.
+This project is a hands-on exercise in computer architecture: from individual datapath blocks (ALU, register file, immediate generator) up to a CPU with a trap mechanism and memory-mapped I/O.
+
+## What's New
+
+- **CSR unit** with `mtvec`, `mepc`, `mcause`, `mtval`, `mscratch` and `mstatus`
+- **Zicsr instructions:** `csrrw`, `csrrs`, `csrrc`
+- **Traps:** `ecall` and `ebreak` save the PC and cause, then jump to the handler at `mtvec`. `mret` restores the PC from `mepc`
+- **Address decoder** in front of memory. Stores to `0x10000000` go to a simulated UART instead of RAM, and the UART prints each byte to the simulator console
+- **Hello World demo:** a test program sets `mtvec`, then does `li a0, <char>` + `ecall` for each letter. The trap handler writes `a0` to the UART, advances `mepc` by 4, and executes `mret`. Twelve ecalls later, `Hello World` appears in the XSim console
 
 ## Features
 
- 32-bit single-cycle datapath (fetch, decode, execute, memory, writeback all in one clock cycle)
- 32 x 32-bit register file with `x0` hardwired to zero
- Instruction memory loaded from a `.hex` file at simulation start
- Data memory with word-aligned load/store
- Immediate generator supporting I-type, S-type, B-type, U-type, and J-type encodings
- Branch and jump (`jal`, `jalr`) support with PC redirection
- 
- Currently supported instructions:
-  - R-type: `add`, `sub`, `sll`, `slt`, `sltu`, `xor`, `srl`, `sra`, `or`, `and`
-  - I-type (ALU immediate): `addi`, `slti`, `sltiu`, `xori`, `ori`, `andi`, `slli`, `srli`, `srai`
-  - Load / Store: `lb`, `lh`, `lw`, `lbu`, `lhu`, `sb`, `sh`, `sw` (`data_mem` is byte-indexed with a `lsmem`/`lsmem_signed` control pair selecting width and sign-extension)
-  - Branches: `beq`, `bne`, `blt`, `bge`, `bltu`, `bgeu`
-  - Jumps: `jal`, `jalr`
-  - Upper immediate: `lui`, `auipc`
+- 32-bit single-cycle datapath (fetch, decode, execute, memory, writeback in one clock)
+- 32 x 32-bit register file with `x0` hardwired to zero
+- Instruction memory loaded from a `.hex` file at simulation start
+- Byte-indexed data memory with `lb/lh/lw/lbu/lhu/sb/sh/sw`
+- Immediate generator for I, S, B, U and J encodings
+- Branch and jump (`jal`, `jalr`) support with PC redirection
+- Machine-mode CSRs and trap entry/return
+- Memory-mapped UART (simulation only)
 
-> Not yet implemented: `ecall`, `ebreak`, `fence`.
+### Supported instructions
 
-## Known Issues / Notes
+| Group | Instructions |
+|---|---|
+| R-type | `add` `sub` `sll` `slt` `sltu` `xor` `srl` `sra` `or` `and` |
+| I-type ALU | `addi` `slti` `sltiu` `xori` `ori` `andi` `slli` `srli` `srai` |
+| Load / Store | `lb` `lh` `lw` `lbu` `lhu` `sb` `sh` `sw` |
+| Branches | `beq` `bne` `blt` `bge` `bltu` `bgeu` |
+| Jumps | `jal` `jalr` |
+| Upper immediate | `lui` `auipc` |
+| System | `ecall` `ebreak` `mret` |
+| Zicsr | `csrrw` `csrrs` `csrrc` |
+| Misc | `fence` (decoded as a NOP, which is fine on a single core) |
 
-> **Testbenches may not all run cleanly.** The `tb_phase1.sv` .. `tb_phase4.sv` testbenches were written incrementally as the design grew, one phase at a time. As later phases changed module interfaces, control signals, and internal structure (e.g. the control unit refactor and the addition of `branch_man.sv`), the earlier-phase testbenches weren't always updated to match. So some of them may fail to compile or give incorrect results against the current RTL. `tb_alu.sv`, `tb_regfile.sv`, `tb_sum.sv`, and `tb_fibonacci.sv` are the ones most likely to reflect the current design; treat the `tb_phaseN.sv` files as a historical record of development rather than a guaranteed-passing test suite.
+## Current Status (Honest Version)
 
-> **`instr_mem.sv` has a hardcoded `$readmemh` filename.** It currently loads `bubble_sort.hex` unconditionally, regardless of which testbench is run. To run `sum.hex` or `fibonacci.hex` against `tb_phase4.sv` / `tb_fibonacci.sv`, swap the filename in `instr_mem.sv` (or parameterize it) before compiling — otherwise the testbench will be checking results against whatever program `bubble_sort.hex` actually contains.
+**Works**
+- `ecall` / `ebreak` trap entry and `mret` return
+- CSR read/write/set/clear
+- UART output through the address decoder (Hello World demo)
+
+**Not done yet**
+- `fence` is not decoded explicitly; it behaves as a NOP
+- No illegal-instruction trap
+- No misaligned load/store/fetch traps
+- Official [`riscv-tests`](https://github.com/riscv-software-src/riscv-tests) have **not** been run yet, so this core is not yet verified as fully compliant
+- The UART exists only in simulation, so there is no FPGA build yet
+
+## Memory Map
+
+| Address | Device |
+|---|---|
+| `0x00000000` and up | Instruction / data RAM |
+| `0x10000000` | Simulated UART TX (byte store prints to console) |
 
 ## Repository Structure
 
 ```
 .
-├── rtl/                 # Core design (RTL)
-│   ├── top.sv            # Top-level module wiring the full datapath
-│   ├── alu.sv             # Arithmetic/logic unit
-│   ├── control_unit.sv    # Instruction decode / control signal generation
-│   ├── regfile.sv         # 32x32-bit register file
-│   ├── imm_gen.sv         # Immediate value generator
-│   ├── instr_mem.sv       # Instruction memory
-│   ├── data_mem.sv        # Data memory
-│   ├── pc_reg.sv          # Program counter register
-│   └── cpu_defs.svh       # Shared types (ctrl_t struct, alu_op_t enum)
-├── tb/                   # Testbenches (per-module and full-CPU)
-│   ├── tb_alu.sv
-│   ├── tb_regfile.sv
-│   ├── tb_phase1.sv .. tb_phase4.sv   # Incremental integration testbenches
-├── Sim/                  # Compiled simulation binaries (Icarus Verilog output)
-├── Waveform/              # Simulation waveform dump + screenshot
-│   ├── phase4_tb.vcd
-│   └── Waveform.png
-├── programs/              # Sample assembly program + its machine code
-│   ├── sum.txt             # RV32I assembly source
-│   └── sum.hex             # Assembled machine code (loaded via $readmemh)
+├── rtl/                  # Core design
+│   ├── top.sv             # Top-level datapath
+│   ├── alu.sv
+│   ├── control_unit.sv    # Decode / control signals
+│   ├── regfile.sv
+│   ├── imm_gen.sv
+│   ├── instr_mem.sv
+│   ├── data_mem.sv
+│   ├── pc_reg.sv
+│   ├── branch_man.sv      # Branch handling
+│   ├── csr_unit.sv        # CSRs + trap logic
+│   ├── addr_decoder.sv    # RAM vs UART select
+│   ├── uart_sim.sv        # Simulated UART (prints to console)
+│   └── cpu_defs.svh       # Shared types (ctrl_t, alu_op_t)
+├── tb/                   # Testbenches
+├── programs/             # Assembly sources and .hex files
+├── Sim/                  # Compiled simulation output
+└── Waveform/             # VCD dumps and screenshots
 ```
 
-## Sample Program: `sum.txt`
+> Adjust file names above to match the actual files in `rtl/`.
 
-The included test program sums the integers 1 through 20 using a loop:
+## Trap Flow
+
+1. `ecall` / `ebreak` is decoded; the control unit raises a trap
+2. CSR unit writes `mepc <- PC`, `mcause <- cause` (11 for ecall from M-mode, 3 for ebreak), updates `mstatus`
+3. PC jumps to `mtvec`
+4. Handler runs (in the demo: write `a0` to UART, `mepc += 4`)
+5. `mret` sets `PC <- mepc`
+
+## Demo: Hello World over UART
 
 ```asm
-addi s0, zero, 0     # s0 = sum = 0
-addi s1, zero, 20    # s1 = bound = 20
-addi s3, zero, 0     # s3 = i = 0
+    la   t0, handler
+    csrw mtvec, t0
 
-loop:
-addi s3, s3, 1       # i++
-add  s0, s0, s3      # sum += i
-bne  s3, s1, loop    # repeat until i == 20
+    li   a0, 'H'
+    ecall
+    li   a0, 'e'
+    ecall
+    # ... one li + ecall per character ...
 
-done:
+handler:
+    li   t1, 0x10000000
+    sb   a0, 0(t1)        # byte goes to the UART, not RAM
+    csrr t2, mepc
+    addi t2, t2, 4        # skip past the ecall
+    csrw mepc, t2
+    mret
 ```
 
-Expected result: `x8 (sum) = 210`.
-
-## Sample Program: `fibonacci.s`
-
-This program generates the first 10 Fibonacci numbers and stores each one to memory as it goes:
-
-```asm
-addi x1, zero, 0    # a = 0
-addi x2, zero, 1    # b = 1
-addi x3, zero, 0    # i = 0 (loop counter)
-addi x4, zero, 10   # how many terms to generate
-addi x5, zero, 0    # mem_addr = 0
-
-loop:
-sw   x1, 0(x5)       # store current fib number
-add  x6, x1, x2      # temp = a + b
-add  x1, zero, x2    # a = b
-add  x2, zero, x6    # b = temp
-addi x3, x3, 1        # i++
-addi x5, x5, 4        # mem_addr += 4 (next word)
-bne  x4, x3, loop     # repeat until i == 10
-
-done:
-jal  x0, done          # infinite loop / halt
-```
-
-Expected result: memory addresses `0x0` through `0x24` hold the first 10 Fibonacci numbers (`0, 1, 1, 2, 3, 5, 8, 13, 21, 34`), and the CPU spins in the `done:` loop afterward. The pre-assembled machine code is in `programs/fibonacci.hex`, and `tb/tb_fibonacci.sv` checks the result.
+Running it prints `Hello World` in the simulator console.
 
 ## Running the Simulation
 
-This project was developed and tested using [Icarus Verilog](http://iverilog.icarus.com/) in the initial phases.
+Developed with Vivado XSim. Icarus Verilog 13.0 chokes on some of the SystemVerilog constructs used here (e.g. the `ctrl_t` / `alu_op_t` typedefs in `cpu_defs.svh`), so use Vivado for the full CPU.
 
-**Note:** the current code does not simulate cleanly on Icarus Verilog version 13.0; it throws several unexpected/incorrect errors on SystemVerilog constructs used here (e.g. the `ctrl_t`/`alu_op_t` typedefs in `cpu_defs.svh`). Because of this, simulation was moved to Vivado for later phases. The commands below are kept for reference and may still work on other iverilog versions, but if you hit strange compile errors on 13.0, try Vivado instead.
+For older iverilog versions, the original flow may still work:
 
-```bash
-# Compile the full-CPU testbench
-iverilog -g2012 -o Sim/phase4_sim rtl/*.sv tb/tb_phase4.sv
-
-# Run it
-vvp Sim/phase4_sim
 ```
-
-This runs `sum.txt` (pre-assembled into `programs/sum.hex`) through the CPU and checks that register `x8` ends up holding `210`.
-
-To inspect the waveform:
-```bash
+iverilog -g2012 -o Sim/phase4_sim rtl/*.sv tb/tb_phase4.sv
+vvp Sim/phase4_sim
 gtkwave Waveform/phase4_tb.vcd
 ```
 
-To run the Fibonacci program instead:
+## Known Issues
 
-```bash
-iverilog -g2012 -o Sim/fibonacci_sim rtl/*.sv tb/tb_fibonacci.sv
-vvp Sim/fibonacci_sim
-```
+- **Older testbenches may not compile.** `tb_phase1.sv` through `tb_phase4.sv` were written incrementally and not all were updated as interfaces changed. `tb_alu.sv`, `tb_regfile.sv`, `tb_sum.sv` and `tb_fibonacci.sv` are the most likely to match the current RTL.
+- **`instr_mem.sv` hardcodes its `$readmemh` filename.** Swap the filename (or parameterize it) to run a different program.
 
-Individual module testbenches (`tb_alu.sv`, `tb_regfile.sv`, etc.) can be compiled and run the same way against their respective RTL files for isolated unit testing.
+## Roadmap
+
+1. 5-stage pipeline (hazard detection, forwarding, load-use stalls, flush on taken branches/jumps, and making traps/CSRs behave correctly with instructions in flight)
+2. Illegal-instruction and misaligned-access traps
+3. Run the official `riscv-tests` suite
+4. Real UART and an FPGA build
 
 ## Design Overview
 
-The datapath follows the classic single-cycle RISC-V structure:
-
-1. **Fetch**: `pc_reg` holds the current PC; `instr_mem` returns the instruction at that address.
-2. **Decode**: `control_unit` derives control signals from the opcode/funct3/funct7 fields; `imm_gen` extracts and sign-extends the immediate; `regfile` reads `rs1`/`rs2`.
-3. **Execute**: `alu` performs the operation selected by the control unit, with operand B chosen between `rs2`, the immediate, or `pc+4` (for `jal` link address).
-4. **Memory**: `data_mem` is read or written depending on the instruction (`lw`/`sw`).
-5. **Writeback**: the ALU result or memory read data is written back to the register file, selected by `mem_to_reg`.
-6. **PC Update**: the next PC is computed as `pc+4`, or `pc+imm` if a branch is taken or the instruction is `jal`.
+1. **Fetch:** `pc_reg` holds the PC; `instr_mem` returns the instruction
+2. **Decode:** `control_unit` generates control signals; `imm_gen` builds the immediate; `regfile` reads `rs1`/`rs2`
+3. **Execute:** `alu` computes the result; branch logic decides the next PC
+4. **Memory:** the address decoder routes the access to `data_mem` or the UART
+5. **Writeback:** ALU result, load data, PC+4 or CSR read data is written back
+6. **PC update:** `pc+4`, branch/jump target, `mtvec` on a trap, or `mepc` on `mret`
