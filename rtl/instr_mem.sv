@@ -3,14 +3,18 @@ module instr_mem (
     output logic [31:0] instr
 );
 
-logic [31:0] mem[0:4095];
+localparam int DEPTH =4096;
+localparam int WIDTH =$clog2(DEPTH);
+
+logic [31:0] mem[0:DEPTH-1];
+
 
 initial begin
 
-    $readmemh("bubble_sort.hex", mem);
+    $readmemh("print.hex", mem);
     
 end
 
-assign instr=mem[addr[31:2]];
+assign instr=mem[addr[WIDTH+1:2]];
 
 endmodule
