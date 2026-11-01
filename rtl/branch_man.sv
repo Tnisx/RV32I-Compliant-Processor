@@ -13,7 +13,7 @@ always_comb begin
     3'b101:branch_cond=~result;//BGE
     3'b110:branch_cond=result;//BLTU
     3'b111:branch_cond=~result;//BGEU
-    default:;
+    default: branch_cond = 1'b0;
     endcase
 end
 endmodule

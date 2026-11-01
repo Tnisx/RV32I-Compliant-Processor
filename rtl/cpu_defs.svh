@@ -20,6 +20,10 @@ typedef struct packed {
  logic        auipc;       //auipc mux
  logic  [1:0] lsmem;        //for load stype structure bit width 
  logic        lsmem_signed; //signed or unsigned load type
+ logic        csr_en;      //enable for write signal in cs registers
+ logic        ecall;       //ecall is called
+ logic        mret;        //mret is called
+ logic        ebreak;      //ebreak is called
    } ctrl_t;
 
 `endif
